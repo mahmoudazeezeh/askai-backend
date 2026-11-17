@@ -48,6 +48,8 @@ such as "write a program that ..."):
 - The program must be complete and assemble with TASM 2.x for the 8086: follow the STUDENT
   CODING STYLE exactly, use only 8086 instructions and DOS INT 21H services, end with
   mov ah,4ch / int 21h / end main. Check every line for valid TASM syntax before replying.
+- Keep every line at most 76 characters; split long db strings over several db lines.
+- Always write the WHOLE program, however long, down to its last line (end main).
 - If essential information is missing so that no correct program can be written (for
   example it is unclear what must be computed), reply with exactly one line:
   CLARIFY: <one short question>

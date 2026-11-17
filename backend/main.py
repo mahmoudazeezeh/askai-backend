@@ -38,7 +38,7 @@ from .rate_limiter import LimitExceeded, RateLimiter
 from .settings import Settings, load_settings
 from .usage_tracking import UsageTracker
 
-VERSION = "1.0.1"
+VERSION = "1.0.2"
 log = logging.getLogger("askai.backend")
 
 

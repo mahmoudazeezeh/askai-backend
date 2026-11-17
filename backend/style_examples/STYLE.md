@@ -17,4 +17,10 @@ no code change needed (restart the backend).
 - Short labels on their own line: `ag:`, `ex:`, `L:`, `Exit:`.
 - No `.stack` line, EXCEPT add `.stack 100h` after `.model small` when the program uses
   push, pop, call or procedures (needed for a correct stack).
+- Every line must be at most 76 characters (DOS screen is 80 columns). Split long
+  messages over several lines: `m1 db 10,13,"1 add",10,13,"$"` is too long when it has many
+  items - write `m1 db 10,13,"1 add"` then `db 10,13,"2 subtract"` ... last line `db 10,13,"$"`.
+- Long programs: conditional jumps (je, jne, jb, ...) only reach 127 bytes on the 8086.
+  If the program is long, put `jumps` on the line after `.model small` (TASM then extends
+  them automatically).
 - No comments.
