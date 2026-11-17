@@ -38,7 +38,7 @@ from .rate_limiter import LimitExceeded, RateLimiter
 from .settings import Settings, load_settings
 from .usage_tracking import UsageTracker
 
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 log = logging.getLogger("askai.backend")
 
 
@@ -112,6 +112,7 @@ class App:
             with self._busy:
                 res = self.router.chat(system, messages, max_tokens=self.s.max_output_tokens,
                                        prefer=prefer)
+                res = self._complete(system, messages, res, req["mode"], deadline=t0 + 170)
                 checked = False
                 modes = {m.strip().upper() for m in self.s.self_check_modes.split(",") if m.strip()}
                 if req["mode"] in modes and not res.truncated:
@@ -137,6 +138,7 @@ class App:
         if req["mode"] in ("GENERATE", "SOLVE", "ASK"):
             pp = code_only.postprocess(res.text, strict=req["mode"] == "GENERATE")
             kind, res.text = pp["kind"], pp["text"]
+        complete = not res.truncated and not (kind == "code" and not code_only.has_end(res.text))
         status = "truncated" if res.truncated else "ok"
         ms = int((time.time() - t0) * 1000)
         self.usage.record(client.id, mode=req["mode"], provider=res.provider, model=res.model,
@@ -149,7 +151,39 @@ class App:
         lim["left_today"] = max(0, lim["left_today"] - 1)
         lim["left_month"] = max(0, lim["left_month"] - 1)
         return {"ok": True, "answer": res.text, "kind": kind, "provider": res.provider, "model": res.model,
-                "truncated": res.truncated, "self_checked": checked, "ms": ms, "limits": lim}
+                "truncated": res.truncated, "complete": complete, "continued": res.continued,
+                "self_checked": checked, "ms": ms, "limits": lim}
+
+    def _complete(self, system: str, messages: list[dict], res, mode: str, deadline: float):
+        """If the model stopped early (output limit, or a program without its
+        END line), ask it to continue exactly where it stopped and join the
+        parts, so long programs always arrive complete."""
+        res.continued = 0
+        text = res.text
+        rounds = 0
+        while rounds < 6 and time.time() < deadline:
+            unfinished = res.truncated or (mode in ("GENERATE", "SOLVE", "ASK")
+                                           and code_only.is_unfinished_program(text))
+            if not unfinished:
+                break
+            follow = messages + [{"role": "assistant", "content": text},
+                                 {"role": "user", "content": prompts.CONTINUE}]
+            try:
+                r2 = self.router.chat(system, follow, max_tokens=self.s.max_output_tokens,
+                                      prefer=(res.provider, res.model))
+            except ProviderError as e:
+                log.warning("continuation failed: %s", e)
+                break
+            text = code_only.join_parts(text, r2.text)
+            res.in_tokens += r2.in_tokens
+            res.out_tokens += r2.out_tokens
+            res.truncated = r2.truncated
+            rounds += 1
+        if rounds:
+            log.info("answer continued %d time(s), complete=%s", rounds, not res.truncated)
+        res.text = text
+        res.continued = rounds
+        return res
 
     def providers_info(self, client) -> dict:
         return {

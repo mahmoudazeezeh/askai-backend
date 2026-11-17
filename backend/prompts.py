@@ -142,6 +142,11 @@ comments, no explanation, no Markdown fences - or a single CLARIFY: line if esse
 information is missing.""",
 }
 
+CONTINUE = """Your previous reply was cut off before it was finished.
+Continue EXACTLY from the last character you wrote. Do not repeat anything you already
+wrote, do not restart, do not add any introduction, explanation or Markdown fence.
+If you were writing a program, keep writing it until its final line (end main)."""
+
 SELF_CHECK = """You are reviewing a draft answer to an 8086 assembly question for correctness.
 Re-compute every register, memory, SP and FLAG value instruction by instruction and check
 every instruction is valid 8086 TASM syntax. Fix any error you find. Output ONLY the final,

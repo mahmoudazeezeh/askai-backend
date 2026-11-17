@@ -88,7 +88,49 @@ def extract_code(answer: str) -> str | None:
             rest = "\n".join(lines[i:])
             if looks_like_program(rest):
                 return rest
+    # unfinished program (no END even after continuation): still return the
+    # code so it is shown in full; the server marks the answer incomplete
+    if is_unfinished_program(answer):
+        if answer.count("```") % 2 == 1:
+            tail = answer[answer.rfind("```"):]
+            return tail.split("\n", 1)[1] if "\n" in tail else ""
+        return answer
     return None
+
+
+def has_end(text: str) -> bool:
+    return bool(_END.search(text))
+
+
+def is_unfinished_program(text: str) -> bool:
+    """A program was started (bare or inside an open ``` fence) but its END
+    directive never arrived - the model stopped too early."""
+    if text.count("```") % 2 == 1:                       # fence opened, never closed
+        tail = text[text.rfind("```"):]
+        body = tail.split("\n", 1)[1] if "\n" in tail else ""
+        return bool(_START.search(body)) and not _END.search(body)
+    stripped = text.strip()
+    if stripped.upper().startswith(CLARIFY):
+        return False
+    lines = [ln for ln in stripped.splitlines() if ln.strip()]
+    return bool(lines) and bool(_START.match(lines[0])) and not _END.search(stripped)
+
+
+def join_parts(first: str, more: str) -> str:
+    """Append a continuation. Deliberately conservative: assembly code is very
+    repetitive, so generic "overlap" removal could delete real lines. Only two
+    safe fixes are made:
+      * a code fence the model re-opens while one is already open is dropped;
+      * if the first part stopped in the MIDDLE of a line and the continuation
+        restarts that exact line, the partial line is replaced."""
+    if first.count("```") % 2 == 1 and more.lstrip().startswith("```"):
+        s = more.lstrip()
+        more = s.split("\n", 1)[1] if "\n" in s else ""
+    if first and not first.endswith("\n"):
+        last = first.rsplit("\n", 1)[-1]
+        if len(last.strip()) >= 3 and more.startswith(last):
+            first = first[: len(first) - len(last)]
+    return first + more
 
 
 def _whole_answer_is_code(a: str) -> str | None:

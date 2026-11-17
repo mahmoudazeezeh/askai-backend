@@ -72,7 +72,7 @@ class Settings:
     max_question_chars: int = 8_000
     max_file_chars: int = 40_000
     max_history_turns: int = 6
-    max_output_tokens: int = 8192
+    max_output_tokens: int = 32768   # Gemini counts its "thinking" in this limit
     provider_timeout: int = 90
     self_check_modes: str = "TRACE,REGS"
 

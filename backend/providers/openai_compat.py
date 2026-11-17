@@ -9,6 +9,7 @@ class OpenAICompatProvider(Provider):
     name = "openai-compatible"
     base_url = ""
     max_tokens_field = "max_tokens"
+    max_output_cap = 8192          # many models reject more; longer answers are continued
 
     def extra_headers(self) -> dict:
         return {}
@@ -23,7 +24,7 @@ class OpenAICompatProvider(Provider):
             "model": model,
             "messages": [{"role": "system", "content": system}] + [
                 {"role": m["role"], "content": m["content"]} for m in messages],
-            self.max_tokens_field: max_tokens,
+            self.max_tokens_field: min(max_tokens, self.max_output_cap),
         }
         if temperature is not None:
             body["temperature"] = temperature
